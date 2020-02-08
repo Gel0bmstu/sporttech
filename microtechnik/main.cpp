@@ -1,70 +1,65 @@
-// библиотека для работы I²C
+#include <HTTPClient.h>
 #include <Wire.h>
-// библиотека для работы с модулями IMU
 #include <TroykaIMU.h>
-
 #include <ArduinoJson.h>
 
 // создаём объект для работы с гироскопом
 Gyroscope gyro;
 // создаём объект для работы с акселерометром
 Accelerometer accel;
-// создаём объект для работы с компасом
-Compass compass;
-// создаём объект для работы с барометром
-Barometer barometer;
 
-// калибровочные значения компаса
-// полученные в калибровочной матрице из примера «compassCalibrateMatrix»
-const double compassCalibrationBias[3] = {
-  524.21,
-  3352.214,
-  -1402.236
-};
-
-const double compassCalibrationMatrix[3][3] = {
-  {1.757, 0.04, -0.028},
-  {0.008, 1.767, -0.016},
-  {-0.018, 0.077, 1.782}
-};
-
-const char* server = "";
-int portNumber = 8080;
 
 StaticJsonBuffer<200> jsonBuffer;
-//JsonObject& root = jsonBuffer.createObject();
-//JsonObject& data = root.createNestedObject("data");
+// вводим имя и пароль точки доступа
+const char* ssid = "MGTS_30";
+const char* password = "mgtswifi30";
+   HTTPClient http;
+void setup() {
+    // иницилизируем монитор порта
+    Serial.begin(115200);
+    // запас времени на открытие монитора порта — 5 секунд
+    delay(5000);
+    // подключаемся к Wi-Fi сети
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(1000);
+        Serial.println("Connecting to Wi-Fi..");
+    }
+    Serial.println("Connected to the Wi-Fi network");
 
-void setup()
-{
-  Serial.begin(115200);
   gyro.begin();
   accel.begin();
+          http.begin("http://192.168.100.233:5000/data");
+          http.addHeader("Content-Type", "application/json");
+}
+String zalupa()
+{
+//  JsonObject& root = jsonBuffer.createObject();
+//  JsonArray& acc = jsonBuffer.createArray();
+    char buffer[256];
+    sprintf(buffer, "%f;%f;%f;%f;%f;%f;%d", accel.readAX(),accel.readAY(),accel.readAZ(),gyro.readDegPerSecX(),gyro.readDegPerSecY(),gyro.readDegPerSecZ(),millis());
+//  acc.add(accel.readAX());
+//  acc.add(accel.readAY());
+//  acc.add(accel.readAZ());
+//
+//  JsonArray& dus = jsonBuffer.createArray();
+//  dus.add(gyro.readDegPerSecX());
+//  dus.add(gyro.readDegPerSecY());
+//  dus.add(gyro.readDegPerSecZ());
+//
+//  root.set(F("acc"),acc);
+//  root.set(F("gyro"),dus);
 
-
+//  String  ans;
+//  root.printTo(ans);
+//  jsonBuffer.clear();
+//  Serial.println(telemetry);
+  return buffer;
 }
 
-auto zalupa()
-{
-  JsonObject& root = jsonBuffer.createObject();
-  JsonArray& acc = jsonBuffer.createArray();
-  acc.add(accel.readAX());
-  acc.add(accel.readAY());
-  acc.add(accel.readAZ());
 
-  JsonArray& dus = jsonBuffer.createArray();
-  dus.add(gyro.readDegPerSecX());
-  dus.add(gyro.readDegPerSecY());
-  dus.add(gyro.readDegPerSecZ());
 
-  root.set(F("acc"),acc);
-  root.set(F("gyro"),dus);
-  String
-  return
-}
-void loop()
-{
-  zalupa();
-
-//  Serial.println();
+void loop() {
+//  http.addHeader("Content-Type", "application/json");
+  int httpCode = http.POST(zalupa());
 }
