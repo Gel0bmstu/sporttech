@@ -6,9 +6,10 @@ __Менеджер плат:__
 DOIT ESP32 DEVKIT V1
 
 ##Библиотеки
-microtechnik/libs  
+__Папка__ microtechnik/libs  
 
-Просто в файле stmhw.h в строчках в самом начале изменить с вот этого:
+###Troyka-INU-master
+В файле stmhw.h в строчках в самом начале изменить с вот этого:
 Код (C++):
 ```
 if defined(__AVR__) || defined(__SAMD21G18A__) || defined(ESP8266)
