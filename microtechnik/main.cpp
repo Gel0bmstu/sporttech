@@ -64,10 +64,11 @@ bool parse_settings(String raw_settings)
   if(sscanf(buf,"wifi '%[^']' '%[^']'",&wifi.ssid,&wifi.passwd))
     EEPROM.put(WIFI_ADDR, wifi);
 
-  if(sscanf(buf,"server '%[^']' %u",&server.ip,&server.port))
+  if(sscanf(buf,"server %[^:]:%u",&server.ip,&server.port))
     EEPROM.put(SERVER_ADDR, server);
 
   EEPROM.commit();
+  connectToWiFi(wifi.ssid, wifi.passwd);
 }
 
 boolean connected = false;
@@ -99,7 +100,7 @@ void WiFiEvent(WiFiEvent_t event){
       case SYSTEM_EVENT_STA_GOT_IP:
           Serial.print("WiFi connected! IP address: ");
           Serial.println(WiFi.localIP());
-          udp.begin(WiFi.localIP(),udpPort);
+          udp.begin(WiFi.localIP(),server.port);
           connected = true;
           break;
 
@@ -112,12 +113,12 @@ void WiFiEvent(WiFiEvent_t event){
     }
 }
 
-void connectToWiFi(const char * wifi.ssid, const char * wifi.passwd){
-  Serial.println("Connecting to WiFi network: " + String(wifi.ssid));
+void connectToWiFi(const char * ssid, const char * passwd){
+  Serial.println("Connecting to WiFi network: " + String(ssid));
 
   WiFi.disconnect(true);
   WiFi.onEvent(WiFiEvent);
-  WiFi.begin(wifi.ssid, wifi.passwd);
+  WiFi.begin(ssid, passwd);
 
   Serial.println("Waiting for WIFI connection...");
 }
@@ -140,4 +141,10 @@ void loop(){
     udp.printf(zalupa());
     udp.endPacket();
   }
+
+    if(Serial.available())
+    {
+        parse_settings(Serial.readString());
+        print_settings();
+    }
 }
