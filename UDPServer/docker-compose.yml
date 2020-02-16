@@ -1,0 +1,12 @@
+version: '3'
+services:
+  udp_server:
+#    container_name: udp_server
+      build: .
+      ports:
+        - "41234:41234"
+      environment:
+        PORT_ENV: "${PORT}"
+        URL_ENV: "${URL}"
+        BATCH_CAP_ENV: "${BATCH_CAPACITY}"
+        NAME_OF_ACTION_ENV: "${NAME_OF_ACTION}"

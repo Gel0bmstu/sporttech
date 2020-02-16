@@ -8,18 +8,24 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 )
 
 const (
-	HOST = "192.168.100.240"
-	PORT = "41234"
-	BATCH_CAPACITY = 1
-	NAME_OF_ACTION = "Basketball"
+
+	HOST_IP_ENV = "HOST_IP"
+
+
+	PORT_ENV = "PORT_ENV"
+	URL_ENV = "URL_ENV"
+	BATCH_CAP_ENV = "BATCH_CAP_ENV"
+	NAME_OF_ACTION_ENV = "NAME_OF_ACTION_ENV"
+
 	//URL = "http://192.168.100.233:8000/series"
-	URL = "http://localhost:8008/series"
+
 	TOKEN = "854362ef8cf672ccb4254cac3e867ae8d7110dd2"
 	PAGE_SIZE = 10
 	ACC_X = 0
@@ -31,39 +37,18 @@ const (
 	TIME = 6
 )
 
-// TODO ########### БЫЛО ##########
-JSON := `
-{
-	name: "Basketball"(string),
-	data: 	{
-				accX: [](float64),
-				accY: [](float64),
-				accZ: [](float64),
-				gyroX: [](float64),
-				gyroY: [](float64),
-				gyroZ: [](float64),
-				time: [](timestamp),
-			},
-}`
 
-// TODO ########### СТАЛО ##########
-JSON := `
-{
-	name: "Basketball"(string),
-	data: 	[{
-				accX: (float64),
-				accY: (float64),
-				accZ: (float64),
-				gyroX: (float64),
-				gyroY: (float64),
-				gyroZ: (float64),
-				time: (timestamp),
-			}],
-}`
+type Config struct {
+	HOST_IP string
+	PORT string
+	URL string
+	BATCH_CAPACITY int
+	NAME_OF_ACTION string
+}
 
 
 type Batch struct {
-	Dataname string `json:"name"`
+	DataName string `json:"name"`
 	DataArray []Data `json:"data"`
 }
 
@@ -84,14 +69,18 @@ var LOCAL_COUNTER = 0
 
 
 func handleUDPConnection(conn *net.UDPConn) {
+
+
 	buffer := make([]byte, 512)
 	_, _, err := conn.ReadFromUDP(buffer)
+	//fmt.Println("UDP client: ", addr)
+	//fmt.Println("Received from UDP client: ", string(buffer))
+	//return
 	if err != nil {
 		log.Fatal(err)
 	} else {
 
-		//fmt.Println("UDP client: ", addr)
-		//fmt.Println("Received from UDP client: ", string(buffer), )
+
 		data := strings.Split(string(buffer), ";")
 
 
@@ -143,7 +132,7 @@ func handleUDPConnection(conn *net.UDPConn) {
 		if LOCAL_COUNTER % 100 == 0 {
 			fmt.Println(LOCAL_COUNTER)
 		}
-		if LOCAL_COUNTER == BATCH_CAPACITY {
+		if LOCAL_COUNTER == conf.BATCH_CAPACITY {
 			fmt.Println("SENDING DATA TO DB")
 			old := GLOBAL_COUNTER
 			go SendBatch(&GLOBAL_BATCH[old])
@@ -161,7 +150,7 @@ func handleUDPConnection(conn *net.UDPConn) {
 
 func initBatch(name string, capacity int) (d *Batch) {
 	d = &Batch {
-		Dataname: name,
+		DataName: name,
 		DataArray: make([]Data, capacity),
 	}
 	return d
@@ -193,7 +182,7 @@ func SendBatch(d *Batch) {
 	b, _ := json.Marshal(d)
 	//fmt.Println(bytes.NewBuffer(b))
 
-	req, err := http.NewRequest("POST", URL, bytes.NewBuffer(b))
+	req, err := http.NewRequest("POST", conf.URL, bytes.NewBuffer(b))
 	if err != nil {
 		log.Fatal("SENDING BATCH ERROR", err)
 	}
@@ -205,30 +194,76 @@ func SendBatch(d *Batch) {
 		fmt.Println(err)
 	}
 	d.clear()
+	d.DataArray = make([]Data, conf.BATCH_CAPACITY)
 	return
 }
 
+var conf Config
+
 func main()  {
-	for i := 0; i < len(GLOBAL_BATCH); i++ {
-		GLOBAL_BATCH[i] = *initBatch(NAME_OF_ACTION, BATCH_CAPACITY)
-		GLOBAL_BATCH[i].mock()
+
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		log.Fatal("Oops: " + err.Error() + "\n")
 	}
 
-	//udpAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%s", HOST, PORT))
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//conn, err := net.ListenUDP("udp", udpAddr)
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//keepListening := true
-	//for keepListening {
-	//		handleUDPConnection(conn)
-	//
-	//}
-	for i:=0; i < PAGE_SIZE; i++ {
-		SendBatch(&GLOBAL_BATCH[i])
-		time.Sleep(time.Second * 10)
+	for _, a := range addrs {
+		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				conf.HOST_IP = ipnet.IP.String()
+				break
+			}
+		}
 	}
+	exist := false
+
+	//conf.HOST_IP, exist = os.LookupEnv(HOST_IP_ENV)
+	//if !exist {
+	//	log.Fatal("NOT FOUND HOST IP")
+	//}
+	conf.PORT, exist = os.LookupEnv(PORT_ENV)
+	if !exist {
+		log.Fatal("NOT FOUND PORT")
+	}
+	BATCH_CAPACITY, exist := os.LookupEnv(BATCH_CAP_ENV)
+	if !exist {
+		log.Fatal("NOT FOUND BATCH CAPACITY")
+	}
+	conf.BATCH_CAPACITY, _ = strconv.Atoi(BATCH_CAPACITY)
+	conf.URL, exist = os.LookupEnv(URL_ENV)
+	if !exist {
+		log.Fatal("NOT FOUND URL")
+	}
+	conf.NAME_OF_ACTION, exist = os.LookupEnv(NAME_OF_ACTION_ENV)
+	if !exist {
+		log.Fatal("NOT FOUND NAME_OF_ACTION_ENV")
+	}
+
+
+
+
+
+	//for i := 0; i < len(GLOBAL_BATCH); i++ {
+	//	GLOBAL_BATCH[i] = *initBatch(conf.NAME_OF_ACTION, conf.BATCH_CAPACITY)
+	//	GLOBAL_BATCH[i].mock()
+	//}
+
+	udpAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%s", conf.HOST_IP, conf.PORT))
+	if err != nil {
+		log.Fatal(err)
+	}
+	conn, err := net.ListenUDP("udp", udpAddr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("UDP SERVER IS READY " + fmt.Sprintf("%s:%s", conf.HOST_IP, conf.PORT))
+	keepListening := true
+	for keepListening {
+			handleUDPConnection(conn)
+
+	}
+	//for i:=0; i < PAGE_SIZE; i++ {
+	//	SendBatch(&GLOBAL_BATCH[i])
+	//	time.Sleep(time.Second * 10)
+	//}
 }
