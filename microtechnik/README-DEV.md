@@ -1,14 +1,4 @@
-##Настройка ArduinoIDE
-__Файл->Настройки->Дополнительные ссылки для менеджера плат:__
-https://dl.espressif.com/dl/package_esp32_index.json  
-
-__Менеджер плат:__  
-DOIT ESP32 DEVKIT V1
-
-##Библиотеки
-__Папка__ microtechnik/libs  
-
-###Troyka-INU-master
+#Troyka-INU-master
 В файле stmhw.h в строчках в самом начале изменить с вот этого:
 Код (C++):
 ```
