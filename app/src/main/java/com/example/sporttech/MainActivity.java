@@ -21,7 +21,7 @@ public class MainActivity extends AppCompatActivity {
         nfcAdapter = NfcAdapter.getDefaultAdapter(this);
 
         if (nfcAdapter != null && nfcAdapter.isEnabled()) {
-//            Toast.makeText(this, "NFC is available!", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "NFC is available!", Toast.LENGTH_LONG).show();
         } else {
             Toast.makeText(this, "NFC is not available!", Toast.LENGTH_LONG).show();
         }
