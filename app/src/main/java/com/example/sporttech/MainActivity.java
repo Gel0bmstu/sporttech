@@ -12,6 +12,7 @@ import android.nfc.Tag;
 import android.nfc.tech.Ndef;
 import android.nfc.tech.NdefFormatable;
 import android.os.Bundle;
+import android.os.Parcelable;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -38,11 +39,29 @@ public class MainActivity extends AppCompatActivity {
 
         if (intent.hasExtra(NfcAdapter.EXTRA_TAG)) {
             Toast.makeText(this, "NFC intent recieved!", Toast.LENGTH_LONG).show();
+            boolean writeMode = false;
+            if (writeMode) {
+                Tag tag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
+                NdefMessage ndefMessage = createNdefMessage("My string content!");
 
-            Tag tag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
-            NdefMessage ndefMessage = createNdefMessage("My string content!");
+                writeNdefMessage(tag, ndefMessage);
+            } else {
+                Parcelable[] parcelables = intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES);
+                if (parcelables != null && parcelables.length > 0) {
+                    NdefMessage ndefMessage = (NdefMessage) parcelables[0];
 
-            writeNdefMessage(tag, ndefMessage);
+                    NdefRecord[] ndefRecords = ndefMessage.getRecords();
+                    if (ndefRecords != null && ndefRecords.length > 0) {
+                        NdefRecord ndefRecord = ndefRecords[0];
+                        String tagContent = getTextFromNdefRecord(ndefRecord);
+                        Toast.makeText(this, "Here is nfc content" + tagContent, Toast.LENGTH_LONG).show();
+                    } else {
+                        Toast.makeText(this, "No NDEF records found", Toast.LENGTH_LONG).show();
+                    }
+                } else {
+                    Toast.makeText(this, "No NDEF messages found", Toast.LENGTH_LONG).show();
+                }
+            }
         }
     }
 
@@ -88,7 +107,7 @@ public class MainActivity extends AppCompatActivity {
 
             Toast.makeText(this, "Tag written!", Toast.LENGTH_LONG).show();
         } catch (Exception e) {
-            Log.e("formatTag", e.toString());
+            Log.e("formatTag", e.getMessage(), e);
         }
     }
 
@@ -123,5 +142,19 @@ public class MainActivity extends AppCompatActivity {
     private NdefMessage createNdefMessage(String content) {
         NdefRecord ndefRecord = NdefRecord.createTextRecord("UTF-8", content);
         return new NdefMessage(new NdefRecord[]{ndefRecord});
+    }
+
+    private String getTextFromNdefRecord(NdefRecord ndefRecord) {
+        String tagContent = null;
+        try {
+            byte[] payload = ndefRecord.getPayload();
+            String textEncoding = ((payload[0] & 128) == 0) ? "UTF-8" : "UTF-16";
+            int languageSize = payload[0] & 0063;
+            tagContent = new String(payload, languageSize + 1,
+                    payload.length - languageSize - 1, textEncoding);
+        } catch (Exception e) {
+            Log.e("getTextFromNdefRecord", e.getMessage(), e);
+        }
+        return tagContent;
     }
 }
